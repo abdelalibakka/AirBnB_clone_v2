@@ -1,28 +1,42 @@
 #!/usr/bin/env bash
 
-# Install Nginx if not already installed
+# Update and install Nginx if not already installed
 if ! command -v nginx &>/dev/null; then
-    apt-get -y update
+    apt-get update
     apt-get -y install nginx
 fi
 
-# Create necessary directories
-mkdir -p /data/web_static/{releases/test,shared}
+# Create directories if they don't exist
+web_static_dir="/data/web_static"
+web_static_releases="$web_static_dir/releases/test"
+web_static_shared="$web_static_dir/shared"
+
+mkdir -p "$web_static_releases"
+mkdir -p "$web_static_shared"
 
 # Create a fake HTML file
-echo "Fake content for testing" > /data/web_static/releases/test/index.html
+echo "<html>
+  <head>
+  </head>
+  <body>
+    Holberton School
+  </body>
+</html>" > "$web_static_releases/index.html"
 
 # Create or recreate a symbolic link
-rm -f /data/web_static/current
-ln -s /data/web_static/releases/test /data/web_static/current
+if [ -L "$web_static_dir/current" ]; then
+    rm -f "$web_static_dir/current"
+fi
 
-# Give ownership to the ubuntu user and group
-chown -R ubuntu:ubuntu /data/
+ln -s "$web_static_releases" "$web_static_dir/current"
 
-# Update Nginx configuration
+# Give ownership to the ubuntu user and group recursively
+chown -R ubuntu:ubuntu "$web_static_dir"
+
+# Update Nginx configuration to serve the content
 config_file="/etc/nginx/sites-available/default"
-if [[ -f $config_file ]]; then
-    sed -i "/location \/hbnb_static/ {s/\(alias.*\)/\1 \/data\/web_static\/current\/;/}" "$config_file"
+if [[ -f "$config_file" ]]; then
+    sed -i "/location \/hbnb_static/ {s/\(alias.*\)/\1 $web_static_dir\/current/;}" "$config_file"
 fi
 
 # Restart Nginx
